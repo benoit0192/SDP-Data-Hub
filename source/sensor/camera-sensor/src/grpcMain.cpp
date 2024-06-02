@@ -5,12 +5,12 @@
 #include <opencv2/opencv.hpp>
 #include <boost/program_options.hpp>
 
-#include <CameraSensor.hpp>
+#include "SimulatedCameraSensor.hpp"
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
 
-
+// =============================================================================
 int main(int argc, char* argv[]) {
     po::options_description desc("Simulated camera sensor options.");
     desc.add_options()
@@ -27,7 +27,8 @@ int main(int argc, char* argv[]) {
     }
 
     if (!vm.contains("data-path")) {
-        std::cerr << "Data path is required. Use --data-path option." << std::endl;
+        std::cerr << "Data path is required. "
+                  << "Use --data-path option." << std::endl;
         return 1;
     }
 
@@ -59,11 +60,9 @@ int main(int argc, char* argv[]) {
         cv::imshow("Image", image);
         cv::waitKey(0);
     }
-    //auto camSensor = CameraSensor(freq=CAMERA.FREQ_10HZ);
-
-    //while(1){
-
-    //}
-
+    
+    sensor::SimulatedCameraSensor simCam = sensor::SimulatedCameraSensor(
+                                                    sensor::Freq::HZ_10,
+                                                    dataPath);
     return 0;
 }

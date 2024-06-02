@@ -1,1 +1,1 @@
-add_subdirectory(camera-sensor)
+add_subdirectory(sensor)
