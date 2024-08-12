@@ -1,0 +1,15 @@
+
+syntax = "proto3";
+
+package sensor;
+
+service SensorService {
+    rpc StreamImageData(Empty) returns (stream ImageData);
+}
+
+message Empty {}
+
+message ImageData {
+    bytes  data      = 1;
+    string timestamp = 2;
+}

@@ -11,10 +11,13 @@ public:
     AbstractCameraSensor(Freq freq=Freq::HZ_10);
     virtual ~AbstractCameraSensor();
     virtual T fetchData() = 0;
+    int getWidth()   const;
+    int getHeight()  const;
+    int getChannel() const;
 
 protected:
-    int height;
     int width;
+    int height;
     int channel;
 };
 

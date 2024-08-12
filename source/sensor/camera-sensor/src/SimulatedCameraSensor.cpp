@@ -5,12 +5,13 @@ namespace fs = std::filesystem;
 namespace sensor {
 
 template class AbstractSensor<cv::Mat>;
+template class AbstractCameraSensor<cv::Mat>;
 
 // =============================================================================
 SimulatedCameraSensor::SimulatedCameraSensor(
                     Freq freq,
                     std::string dataPath) : AbstractCameraSensor<cv::Mat>(freq),
-                                                    imIx(0) {
+                                            imIx(0) {
     // Check if the directory exists
     if (!fs::exists(dataPath)) {
         throw std::runtime_error("Directory not found: " + dataPath);
