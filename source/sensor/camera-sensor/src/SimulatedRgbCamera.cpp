@@ -1,14 +1,13 @@
-#include "SimulatedCameraSensor.hpp"
+#include "SimulatedRgbCamera.hpp"
 
 namespace fs = std::filesystem;
 
 namespace sensor {
 
 template class AbstractSensor<cv::Mat>;
-template class AbstractCameraSensor<cv::Mat>;
 
 // =============================================================================
-SimulatedCameraSensor::SimulatedCameraSensor(
+SimulatedRgbCamera::SimulatedRgbCamera(
                     Freq freq,
                     std::string dataPath) : AbstractCameraSensor<cv::Mat>(freq),
                                             imIx(0) {
@@ -40,17 +39,48 @@ SimulatedCameraSensor::SimulatedCameraSensor(
 }
 
 // =============================================================================
-SimulatedCameraSensor::~SimulatedCameraSensor(){}
+SimulatedRgbCamera::~SimulatedRgbCamera(){}
 
 // =============================================================================
-cv::Mat SimulatedCameraSensor::fetchData(){
+cv::Mat SimulatedRgbCamera::fetchData(){
     // Loop indefinitely over the image sequence
     this->imIx = (this->imIx + 1) % this->images.size();
     return this->images[this->imIx];
 }
 
 // =============================================================================
-void SimulatedCameraSensor::playClip(){
+std::vector<char> SimulatedRgbCamera::encodeDataToByte(cv::Mat im){
+    if(!im.isContinuous()) {
+        throw std::runtime_error("cv::Mat is not continuous.");
+    }
+    if ((int)im.total()*(int)im.elemSize() != height*width*channel) {
+        throw std::runtime_error(
+            "Image size does not match the expected size of the buffer.");
+    }
+    std::vector<char> buffer(width*height*channel);
+    std::memcpy(buffer.data(), im.data, buffer.size());
+
+    return buffer;
+}
+
+// =============================================================================
+cv::Mat SimulatedRgbCamera::decodeDataFromByte(std::vector<char> buffer){
+    cv::Mat im(height, width, channel);
+
+    if (!im.isContinuous()) {
+        throw std::runtime_error("cv::Mat is not continuous.");
+    }
+    if ((int)buffer.size() != height*width*channel) {
+        throw std::runtime_error(
+            "Buffer size does not match the expected size of the cv::Mat.");
+    }
+    std::memcpy(im.data, buffer.data(), buffer.size());
+
+    return im;
+}
+
+// =============================================================================
+void SimulatedRgbCamera::playClip(){
     for (const auto& im: this->images){
         cv::imshow("Image", im);
         cv::waitKey(0);

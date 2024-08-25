@@ -49,7 +49,7 @@ endforeach()
 # ==============================================================================
 
 
-set(LIBRARY_SOURCES src/SimulatedCameraSensor.cpp
+set(LIBRARY_SOURCES src/SimulatedRgbCamera.cpp
                     src/GrpcServer.cpp)
 
 add_library(${LIBRARY_NAME} STATIC ${LIBRARY_SOURCES}

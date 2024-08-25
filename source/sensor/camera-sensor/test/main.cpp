@@ -1,13 +1,8 @@
-#include <set>
 #include <iostream>
-#include <filesystem>
-
-#include <opencv2/opencv.hpp>
 #include <boost/program_options.hpp>
 
-#include "SimulatedCameraSensor.hpp"
+#include "SimulatedRgbCamera.hpp"
 
-namespace fs = std::filesystem;
 namespace po = boost::program_options;
 
 // =============================================================================
@@ -35,9 +30,9 @@ int main(int argc, char* argv[]) {
     // Path to the directory containing the images
     std::string dataPath = vm["data-path"].as<std::string>();
 
-    sensor::SimulatedCameraSensor simCam = sensor::SimulatedCameraSensor(
-                                                            sensor::Freq::HZ_10,
-                                                            dataPath);
+    sensor::SimulatedRgbCamera simCam = sensor::SimulatedRgbCamera(
+                                                          sensor::Freq::HZ_10,
+                                                          dataPath);
     simCam.playClip();
 
     return 0;

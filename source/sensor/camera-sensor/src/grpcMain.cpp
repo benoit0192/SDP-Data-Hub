@@ -5,7 +5,7 @@
 #include <opencv2/opencv.hpp>
 #include <boost/program_options.hpp>
 
-#include "SimulatedCameraSensor.hpp"
+#include "SimulatedRgbCamera.hpp"
 
 namespace fs = std::filesystem;
 namespace po = boost::program_options;
@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
         cv::waitKey(0);
     }
     
-    sensor::SimulatedCameraSensor simCam = sensor::SimulatedCameraSensor(
+    sensor::SimulatedRgbCamera simCam = sensor::SimulatedRgbCamera(
                                                     sensor::Freq::HZ_10,
                                                     dataPath);
     return 0;

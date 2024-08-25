@@ -14,18 +14,19 @@ AbstractSensor<T>::~AbstractSensor(){}
 
 // =============================================================================
 template <typename T>
-T AbstractSensor<T>::stream(){
+std::vector<char> AbstractSensor<T>::stream(){
     auto tStart = std::chrono::high_resolution_clock::now();
 
-    T data = this->fetchData();
+    T data                   = fetchData();
+    std::vector<char> buffer = encodeDataToByte(data);
 
-    auto tEnd = std::chrono::high_resolution_clock::now();
+    auto tEnd     = std::chrono::high_resolution_clock::now();
     auto duration = std::chrono::duration<double>(tEnd - tStart);
-    auto tSleep = this->dt - duration;
+    auto tSleep   = this->dt - duration;
     if(tSleep.count() > 0){
         std::this_thread::sleep_for(tSleep);
     }
-    return data;
+    return buffer;
 }
 
 } // sensor

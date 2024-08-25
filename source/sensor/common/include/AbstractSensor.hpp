@@ -2,22 +2,21 @@
 #define ABSTRACT_SENSOR
 
 #include <chrono>
+#include <vector>
+
+#include "Frequency.hpp"
 
 namespace sensor {
-
-enum class Freq{
-    HZ_10 = 10,
-    HZ_20 = 20,
-    HZ_30 = 30,
-};
 
 template <typename T>
 class AbstractSensor{
 public:
     AbstractSensor(Freq freq=Freq::HZ_10);
-    virtual ~AbstractSensor();
-    virtual T fetchData() = 0;
-    T stream();
+    virtual                   ~AbstractSensor();
+    virtual T                 fetchData() = 0;
+    virtual std::vector<char> encodeDataToByte(T data) = 0;
+    virtual T                 decodeDataFromByte(std::vector<char> data) = 0;
+    std::vector<char>         stream();
 
 protected:
     Freq freq;
