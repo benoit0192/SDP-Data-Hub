@@ -1,0 +1,26 @@
+
+syntax = "proto3";
+
+package sensor_proto;
+
+service SensorService {
+    rpc StreamData(Empty)    returns (stream Data);
+}
+
+enum Freq {
+  HZ_10 = 0;
+  HZ_20 = 1;
+  HZ_30 = 2;
+}
+
+message Empty {}
+
+message Data {
+  string timestamp = 1;
+  bytes  data      = 2;
+}
+
+message SensorParams {
+  Freq freq = 1;
+}
+

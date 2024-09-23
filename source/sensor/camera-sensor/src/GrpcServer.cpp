@@ -1,5 +1,7 @@
+#include <atomic>
 #include <memory>
 #include <string>
+#include <csignal>
 #include <fstream>
 #include <thread>
 #include <chrono>
@@ -7,52 +9,71 @@
 #include <boost/program_options.hpp>
 
 #include <grpcpp/grpcpp.h>
+#include "sensor.grpc.pb.h"
 #include "camera-sensor.grpc.pb.h"
 
 #include "SimulatedRgbCamera.hpp"
+#include "Utils.hpp"
 
+using grpc::Status;
 using grpc::Server;
+using grpc::ServerWriter;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
-using grpc::Status;
-using grpc::ServerWriter;
 
-using sensor::SensorService;
-using sensor::Empty;
-using sensor::ImageData;
+using sensor_proto::Data;
+using sensor_proto::Empty;
+using sensor_proto::SensorService;
 
 namespace po = boost::program_options;
 
+std::atomic<bool> stopRequested(false);
+
+void SignalHandler([[maybe_unused]] int signal) {
+    stopRequested.store(true);
+}
 
 class SensorServiceImpl final : public SensorService::Service {
 public:
-    SensorServiceImpl(sensor::Freq freq, std::string dataPath): camera(freq, dataPath) {
+    SensorServiceImpl(sensor::Freq freq, std::string dataPath):
+                                                    camera(freq, dataPath) {
 
     }
 
-    Status StreamImageData(ServerContext* context, const Empty* request,
-                           ServerWriter<ImageData>* writer) override {
-        while (true) {
-            ImageData imageData;
-            if (getImageFromSensor(&imageData)) {
-                writer->Write(imageData);
-            }
+    Status StreamData([[maybe_unused]] ServerContext* context,
+                      [[maybe_unused]] const Empty* request,
+                      ServerWriter<Data>* writer) override {
+        Data imageData;
+
+        while(getImageFromSensor(imageData) && !stopRequested.load()) {
+            writer->Write(imageData);
             //std::this_thread::sleep_for(std::chrono::seconds(1));
         }
+        // TODO: Create proper protos to end the stream
+        Data terminationSignal;
+        terminationSignal.set_timestamp(std::to_string(0));  // Signal to indicate the stream is ending
+        writer->Write(terminationSignal);
+
         return Status::OK;
     }
 
 private:
     sensor::SimulatedRgbCamera camera;
-    bool getImageFromSensor(ImageData* imageData) {
+    bool getImageFromSensor(Data& imageData) {
         //TODO: See if "stream" method should run into a separate thread.
         std::vector<char> buffer = camera.stream();
-        std::string strBuffer(buffer.begin(), buffer.end());
-        imageData->set_data(strBuffer);
-        imageData->set_timestamp(std::to_string(time(nullptr)));
+        for(int i=0; i < 5; i++) {
+          printHex(buffer[i]);
+          std::cout << " ";}
+        std::cout << std::endl;
+        std::string strBuffer(buffer.data(), buffer.size());
+        imageData.set_data(strBuffer);
+        imageData.set_timestamp(std::to_string(time(nullptr)));
         return true;
     }
 };
+
+// =============================================================================
 
 void RunServer(std::string host, std::string port,
                sensor::Freq freq, std::string dataPath) {
@@ -65,7 +86,16 @@ void RunServer(std::string host, std::string port,
     std::unique_ptr<Server> server(builder.BuildAndStart());
     std::cout << "Server listening on " << serverAddr << std::endl;
 
-    server->Wait();
+    std::signal(SIGINT, SignalHandler);
+    std::signal(SIGTERM, SignalHandler);
+
+    while (!stopRequested.load()) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    std::cout << "Stopping server..." << std::endl;
+    server->Shutdown();
+    //server->Wait();
 }
 
 int main(int argc, char** argv) {
@@ -84,12 +114,12 @@ int main(int argc, char** argv) {
     }
 
     std::string host = "0.0.0.0";
-    if (!vm.contains("host")) {
+    if (vm.contains("host")) {
         host = vm["host"].as<std::string>();
     }
 
     std::string port = "50051";
-    if (!vm.contains("port")) {
+    if (vm.contains("port")) {
         port = vm["port"].as<std::string>();
     }
 
@@ -106,7 +136,7 @@ int main(int argc, char** argv) {
       freq = sensor::Frequency::parseFrequency(vm["freq"].as<int>());
     }
 
-    //RunServer(host, port, freq, dataPath);
+    RunServer(host, port, freq, dataPath);
 
     return 0;
 }

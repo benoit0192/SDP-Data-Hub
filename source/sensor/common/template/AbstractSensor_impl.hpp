@@ -10,11 +10,12 @@ AbstractSensor<T>::AbstractSensor(Freq freq): freq(freq) {
 
 // =============================================================================
 template <typename T>
-AbstractSensor<T>::~AbstractSensor(){}
+AbstractSensor<T>::~AbstractSensor() {
+}
 
 // =============================================================================
 template <typename T>
-std::vector<char> AbstractSensor<T>::stream(){
+std::vector<char> AbstractSensor<T>::stream() {
     auto tStart = std::chrono::high_resolution_clock::now();
 
     T data                   = fetchData();
@@ -27,6 +28,12 @@ std::vector<char> AbstractSensor<T>::stream(){
         std::this_thread::sleep_for(tSleep);
     }
     return buffer;
+}
+
+// =============================================================================
+template <typename T>
+T decodeDataFromByte(const std::vector<char>& data, SensorParams& params) {
+    throw std::runtime_error("'decodeDataFromByte' not implemented.");
 }
 
 } // sensor

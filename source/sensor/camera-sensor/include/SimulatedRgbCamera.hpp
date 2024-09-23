@@ -12,9 +12,10 @@ class SimulatedRgbCamera : public AbstractCameraSensor<cv::Mat> {
 public:
     SimulatedRgbCamera(Freq freq, std::string dataPath);
     ~SimulatedRgbCamera();
-    cv::Mat           fetchData()                                  override;
-    std::vector<char> encodeDataToByte(cv::Mat im)                 override;
-    cv::Mat           decodeDataFromByte(std::vector<char> buffer) override;
+    cv::Mat           fetchData() override;
+    std::vector<char> encodeDataToByte(const cv::Mat& im) override;
+    static cv::Mat    decodeDataFromByte(const std::vector<char>& buffer,
+                                         CameraParams& params);
     void              playClip();
 
 private:

@@ -10,7 +10,6 @@ set(ABSL_PROPAGATE_CXX_STD ON)
 
 add_compile_options(-Wall -Wextra)
 
-#option(ENABLE_TESTING "Enable testing" ON)
 option(ENABLE_TESTING "Enable testing" OFF)
 
 include(${CMAKE_SOURCE_DIR}/cmake/googletest.cmake)

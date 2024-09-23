@@ -6,83 +6,93 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(ABSL_PROPAGATE_CXX_STD ON)
 add_compile_options(-Wall -Wextra)
 
-# External dependencies ========================================================
+# External dependencies --------------------------------------------------------
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 find_package(Boost REQUIRED COMPONENTS program_options)
 include_directories(${Boost_INCLUDE_DIRS})
+# ------------------------------------------------------------------------------
 
-find_package(Protobuf CONFIG REQUIRED)
-include_directories(${Protobuf_INCLUDE_DIRS})
+set(LIBRARY_SOURCES src/SimulatedRgbCamera.cpp)
 
-find_package(gRPC CONFIG REQUIRED)
-include_directories(${gRPC_INCLUDE_DIRS})
+add_library(${LIBRARY_NAME} STATIC ${LIBRARY_SOURCES})
 
-# import "protobuf_generate_cpp function"
-include(${Protobuf_DIR}/protobuf-module.cmake)
-
-# gRPC files building =====#====================================================
-set(PROTO_FILES ${CMAKE_CURRENT_SOURCE_DIR}/proto/camera-sensor.proto)
-
-# Generate C++ source files from proto files
-protobuf_generate_cpp(PROTO_SRCS PROTO_HDRS ${PROTO_FILES})
-
-foreach(FIL ${PROTO_FILES})
-    get_filename_component(FIL_WE ${FIL} NAME_WE)
-    set(GRPC_PROTO_SRCS ${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.grpc.pb.cc)
-    set(GRPC_PROTO_HDRS ${CMAKE_CURRENT_BINARY_DIR}/${FIL_WE}.grpc.pb.h)
-    add_custom_command(
-        OUTPUT ${GRPC_PROTO_SRCS} ${GRPC_PROTO_HDRS}
-        COMMAND ${Protobuf_PROTOC_EXECUTABLE}
-        ARGS --grpc_out=${CMAKE_CURRENT_BINARY_DIR}
-             --plugin=protoc-gen-grpc=`which grpc_cpp_plugin`
-             --cpp_out=${CMAKE_CURRENT_BINARY_DIR}
-             -I ${CMAKE_CURRENT_SOURCE_DIR}/proto
-             ${FIL}
-        DEPENDS ${FIL}
-        COMMENT "Generating gRPC source and header files from ${FIL}"
-    )
-    list(APPEND GRPC_SRCS ${GRPC_PROTO_SRCS})
-    list(APPEND GRPC_HDRS ${GRPC_PROTO_HDRS})
-endforeach()
-# ==============================================================================
-
-
-set(LIBRARY_SOURCES src/SimulatedRgbCamera.cpp
-                    src/GrpcServer.cpp)
-
-add_library(${LIBRARY_NAME} STATIC ${LIBRARY_SOURCES}
-                                   ${PROTO_SRCS}
-                                   ${PROTO_HDRS}
-                                   ${GRPC_SRCS}
-                                   ${GRPC_HDRS})
+add_dependencies(${LIBRARY_NAME} SensorLib)
 
 target_include_directories(${LIBRARY_NAME} PUBLIC
-                                ${CMAKE_CURRENT_SOURCE_DIR}/..
-                                ${CMAKE_CURRENT_SOURCE_DIR}/template
-                                ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                ${CMAKE_BINARY_DIR}/source/sensor/camera-sensor)
+                               ${CMAKE_BINARY_DIR}/source/sensor/camera-sensor)
 
 # Link external libraries
-target_link_libraries(${LIBRARY_NAME}
-                                PUBLIC ${OpenCV_LIBS} 
+target_link_libraries(${LIBRARY_NAME} PUBLIC
+                                       ${OpenCV_LIBS}
                                        ${Boost_LIBRARIES}
-                                       gRPC::grpc++
-                                       ${Protobuf_LIBRARIES}
-                                       SensorLib)
-# ==============================================================================
+                                       UtilsLib
+                                       SensorLib
+)
 
-# Executables ==================================================================
-add_executable(camera_grpc src/grpcMain.cpp)
+target_include_directories(${LIBRARY_NAME} PUBLIC
+  ${CMAKE_SOURCE_DIR}/source/utils/include
+  ${CMAKE_CURRENT_SOURCE_DIR}/..
+  ${CMAKE_CURRENT_SOURCE_DIR}/template
+  ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# Include gRPC dependencies ----------------------------------------------------
+find_package(protobuf CONFIG REQUIRED)
+find_package(gRPC     CONFIG REQUIRED)
+
+add_library(CameraSensorProtos OBJECT
+                         "${CMAKE_CURRENT_LIST_DIR}/proto/camera-sensor.proto")
+
+target_link_libraries(CameraSensorProtos PUBLIC protobuf::libprotobuf
+                                                gRPC::grpc++
+                                                SensorProtos
+)
+
+set(PROTO_BINARY_DIR  "${CMAKE_CURRENT_BINARY_DIR}")
+set(PROTO_IMPORT_DIRS "${CMAKE_CURRENT_LIST_DIR}/proto"
+                      "${CMAKE_SOURCE_DIR}/source/sensor/common/proto"
+)
+
+target_include_directories(CameraSensorProtos PUBLIC
+  "$<BUILD_INTERFACE:${PROTO_BINARY_DIR}>"
+  "$<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/source/sensor/common/proto>"
+)
+
+protobuf_generate(
+  TARGET         CameraSensorProtos
+  IMPORT_DIRS    "${PROTO_IMPORT_DIRS}"
+  PROTOC_OUT_DIR "${PROTO_BINARY_DIR}"
+)
+
+protobuf_generate(
+  TARGET              CameraSensorProtos
+  LANGUAGE            grpc
+  GENERATE_EXTENSIONS .grpc.pb.h .grpc.pb.cc
+  PLUGIN              "protoc-gen-grpc=\$<TARGET_FILE:gRPC::grpc_cpp_plugin>"
+  IMPORT_DIRS         "${PROTO_IMPORT_DIRS}"
+  PROTOC_OUT_DIR      "${PROTO_BINARY_DIR}"
+)
+
+target_link_libraries(${LIBRARY_NAME} PUBLIC SensorProtos
+                                             CameraSensorProtos
+)
+# ------------------------------------------------------------------------------
+
+# Executables ------------------------------------------------------------------
+add_executable(camera_grpc src/GrpcServer.cpp)
 target_link_libraries(camera_grpc PUBLIC ${LIBRARY_NAME})
 
 add_executable(camera_test test/main.cpp)
 target_link_libraries(camera_test PUBLIC ${LIBRARY_NAME})
-# ==============================================================================
+# ------------------------------------------------------------------------------
 
+# Should be added only for debugging
+add_executable(camera_grpc_client test/GrpcClient.cpp)
+target_link_libraries(camera_grpc_client PUBLIC ${LIBRARY_NAME})
 
-# Testing ======================================================================
+# Testing ----------------------------------------------------------------------
 if (ENABLE_TESTING)
     include(GoogleTest)
     add_executable(${LIBRARY_NAME}-Test test/test.cpp)
@@ -90,5 +100,5 @@ if (ENABLE_TESTING)
 
     gtest_discover_tests(${LIBRARY_NAME}-Test)
 endif()
-# ==============================================================================
+# ------------------------------------------------------------------------------
 

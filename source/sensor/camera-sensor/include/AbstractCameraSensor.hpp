@@ -5,6 +5,13 @@
 
 namespace sensor {
 
+struct CameraParams: public SensorParams {
+    CameraParams() : SensorParams() {};
+    int width   = 0;
+    int height  = 0;
+    int channel = 0;
+};
+
 template <typename T>
 class AbstractCameraSensor : public AbstractSensor<T>{
 public:
