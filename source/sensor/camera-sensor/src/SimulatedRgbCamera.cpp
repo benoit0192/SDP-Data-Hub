@@ -9,8 +9,12 @@ template class AbstractSensor<cv::Mat>;
 // =============================================================================
 SimulatedRgbCamera::SimulatedRgbCamera(
                     Freq freq,
-                    std::string dataPath) : AbstractCameraSensor<cv::Mat>(freq),
-                                            imIx(0)
+                    std::string dataPath,
+                    double sampleRate) :
+                        AbstractCameraSensor<cv::Mat>(freq),
+                        imIx(0),
+                        sampleRate(duration_t(sampleRate)),
+                        sampleRateNs(std::chrono::duration_cast<std::chrono::nanoseconds>(this->sampleRate))
 {
     // Check if the directory exists
     if (!fs::exists(dataPath)) {
@@ -48,8 +52,11 @@ SimulatedRgbCamera::~SimulatedRgbCamera()
 cv::Mat SimulatedRgbCamera::fetchData()
 {
     // Loop indefinitely over the image sequence
-    this->imIx = (this->imIx + 1) % this->images.size();
-    return this->images[this->imIx];
+    auto now         = clock::now();
+    auto elapsedTime = now - tStart;
+
+    imIx = (elapsedTime / sampleRateNs) % images.size();
+    return images[imIx];
 }
 
 // =============================================================================
@@ -89,21 +96,35 @@ cv::Mat SimulatedRgbCamera::decodeDataFromByte(const std::vector<char>& buffer,
 }
 
 // =============================================================================
-void SimulatedRgbCamera::playClip()
+void SimulatedRgbCamera::streamForDuration(double duration,
+                                           CameraParams& params)
 {
-    //CameraParams params;
-    //params.width = 1280;
-    //params.height = 720;
-    //params.channel = 3;
-    for (const auto& im: this->images){
-        //std::vector<char> bytes = encodeDataToByte(im);
-        //std::string strBuffer(bytes.data(), bytes.size());
-        //std::vector<char> buffer(strBuffer.data(), strBuffer.data()+strBuffer.size());
-        //auto decIm = decodeDataFromByte(buffer, params);
-        //cv::imshow("Image", decIm);
-        cv::imshow("Image", im);
-        cv::waitKey(0);
+
+    using clock   = std::chrono::steady_clock;
+    auto tStart_  = clock::now();
+    auto dt_      = std::chrono::duration<double>(duration);
+    auto dt_ns_   = std::chrono::duration_cast<std::chrono::nanoseconds>(dt_);
+    auto lastTime = tStart_;
+    std::string cvWindowName = "Sensor Stream";
+    while(clock::now() - tStart_ < dt_ns_){
+        auto buffer = stream();
+        auto im     = decodeDataFromByte(buffer, params);
+
+        auto currentTime = clock::now();
+        std::chrono::duration<double, std::milli> deltaTime = currentTime - lastTime;
+        lastTime = currentTime;
+
+        std::string deltaText = "Delta Time: " +
+                                std::to_string(deltaTime.count()) +
+                                " ms";
+        std::cout << deltaText << '\n';
+
+        cv::imshow(cvWindowName, im);
+        if (cv::waitKey(1) == 'q') {
+            break;
+        }
     }
+    cv::destroyWindow(cvWindowName);
 }
 
 } // namespace sensor

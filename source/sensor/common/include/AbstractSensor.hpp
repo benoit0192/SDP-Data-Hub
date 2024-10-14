@@ -23,12 +23,17 @@ public:
     std::vector<char>         stream();
 
 protected:
-    Freq freq;
-    std::chrono::duration<double> dt;
+    using clock      = std::chrono::steady_clock;
+    using duration_t = std::chrono::duration<double>;
+    Freq              freq;
+    duration_t        dt;
+    std::chrono::duration<long int, std::nano> dt_ns;
+    clock::time_point tStart;
+    clock::time_point nextSampleTime;
 };
 
 } // sensor
 
 #include "AbstractSensor_impl.hpp"
 
-#endif // ABSTRACT_SENSOR
+#endif // !ABSTRACT_SENSOR
