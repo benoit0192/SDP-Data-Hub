@@ -13,7 +13,7 @@ struct CameraParams: public SensorParams {
 };
 
 template <typename T>
-class AbstractCameraSensor : public AbstractSensor<T>{
+class AbstractCameraSensor : public AbstractSensor<T> {
 public:
     AbstractCameraSensor(Freq freq=Freq::HZ_10);
     virtual ~AbstractCameraSensor();
@@ -32,4 +32,4 @@ protected:
 
 #include "AbstractCameraSensor_impl.hpp"
 
-#endif // ABSTRACT_CAMERA_SENSOR
+#endif // !ABSTRACT_CAMERA_SENSOR
