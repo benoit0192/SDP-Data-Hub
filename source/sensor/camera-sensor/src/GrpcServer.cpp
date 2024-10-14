@@ -47,7 +47,6 @@ public:
 
         while(getImageFromSensor(imageData) && !stopRequested.load()) {
             writer->Write(imageData);
-            //std::this_thread::sleep_for(std::chrono::seconds(1));
         }
         // TODO: Create proper protos to end the stream
         Data terminationSignal;
@@ -60,11 +59,11 @@ public:
 private:
     sensor::SimulatedRgbCamera camera;
     bool getImageFromSensor(Data& imageData) {
-        //TODO: See if "stream" method should run into a separate thread.
         std::vector<char> buffer = camera.stream();
         for(int i=0; i < 5; i++) {
           printHex(buffer[i]);
-          std::cout << " ";}
+          std::cout << " ";
+        }
         std::cout << std::endl;
         std::string strBuffer(buffer.data(), buffer.size());
         imageData.set_data(strBuffer);
@@ -75,7 +74,7 @@ private:
 
 // =============================================================================
 
-void RunServer(std::string host, std::string port,
+void runServer(std::string host, std::string port,
                sensor::Freq freq, std::string dataPath) {
     std::string serverAddr(host + ":" + port);
     SensorServiceImpl service(freq, dataPath);
@@ -102,7 +101,10 @@ int main(int argc, char** argv) {
     po::options_description desc("Grpc Server with simulated camera sensor options.");
     desc.add_options()
         ("help", "Display available options")
-        ("data-path", po::value<std::string>(), "Set the data path");
+        ("host", po::value<std::string>(), "Set the host address")
+        ("port", po::value<std::string>(), "Set the port")
+        ("data-path", po::value<std::string>(), "Set the data path")
+        ("freq", po::value<int>(), "Set the sensor frequency");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -136,7 +138,7 @@ int main(int argc, char** argv) {
       freq = sensor::Frequency::parseFrequency(vm["freq"].as<int>());
     }
 
-    RunServer(host, port, freq, dataPath);
+    runServer(host, port, freq, dataPath);
 
     return 0;
 }

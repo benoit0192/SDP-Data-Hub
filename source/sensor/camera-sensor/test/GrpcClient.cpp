@@ -4,9 +4,10 @@
 #include <csignal>
 #include <fstream>
 #include <iostream>
+#include <opencv2/opencv.hpp>
+#include <boost/program_options.hpp>
 
 #include <grpcpp/grpcpp.h>
-#include <opencv2/opencv.hpp>
 #include "camera-sensor.grpc.pb.h"
 #include "sensor.grpc.pb.h"
 
@@ -20,6 +21,7 @@ using sensor_proto::SensorService;
 using sensor_proto::Empty;
 using sensor_proto::Data;
 
+namespace po = boost::program_options;
 
 std::atomic<bool> stopRequested(false);
 
@@ -29,12 +31,13 @@ void SignalHandler([[maybe_unused]] int signal) {
 
 class SensorClient {
 public:
-    SensorClient(std::shared_ptr<Channel> channel)
-        : stub_(SensorService::NewStub(channel)) {
-        //TODO: Dimensions should be passed from the CLI
-        params.width   = 1280;
-        params.height  = 720;
-        params.channel = 3;
+    SensorClient(std::shared_ptr<Channel> channel,
+                 int width,
+                 int height,
+                 int ch) : stub_(SensorService::NewStub(channel)) {
+        params.width   = width;
+        params.height  = height;
+        params.channel = ch;
     }
 
     void StreamData() {
@@ -52,23 +55,16 @@ public:
             }
             std::vector<char> buffer(imageData.data().data(),
                               imageData.data().data()+imageData.data().size());
-            //for(int i=0; i < 5; i++) {
-            //  printHex(buffer[i]);
-            //  std::cout << " ";}
-            //std::cout << std::endl;
 
             cv::Mat im = sensor::SimulatedRgbCamera::decodeDataFromByte(buffer, params);
         }
 
         //context.TryCancel();
 
-        std::cout << "Call to Finish\n";
         Status status = reader->Finish();
-        std::cout << "Finished\n";
         if (!status.ok()) {
             std::cerr << "StreamData failed: " << status.error_message() << std::endl;
         }
-        std::cout << "Go out of scope\n";
     }
 
 private:
@@ -77,12 +73,56 @@ private:
 };
 
 // =============================================================================
-
 int main(int argc, char** argv) {
-    std::signal(SIGINT, SignalHandler);
+    po::options_description desc("Simulated camera sensor options.");
+    desc.add_options()
+        ("help", "Display available options")
+        ("host", po::value<std::string>(), "Set the host address")
+        ("port", po::value<std::string>(), "Set the port")
+        ("width"   , po::value<int>(), "Set the frame width")
+        ("height"  , po::value<int>(), "Set the frame height")
+        ("channels", po::value<int>(), "Set the frame channel");
+
+    po::variables_map vm;
+    po::store(po::parse_command_line(argc, argv, desc), vm);
+    po::notify(vm);
+
+    if (vm.contains("help")) {
+        std::cout << desc << std::endl;
+        return 0;
+    }
+
+    std::string host = "0.0.0.0";
+    if (vm.contains("host")) {
+        host = vm["host"].as<std::string>();
+    }
+
+    std::string port = "50051";
+    if (vm.contains("port")) {
+        port = vm["port"].as<std::string>();
+    }
+
+    int width = 1280;
+    if (vm.contains("width")) {
+        width = vm["width"].as<int>();
+    }
+    int height = 720;
+    if (vm.contains("height")) {
+        height = vm["height"].as<int>();
+    }
+    int channel = 3;
+    if (vm.contains("channel")) {
+        channel = vm["channel"].as<int>();
+    }
+
+    std::signal(SIGINT , SignalHandler);
     std::signal(SIGTERM, SignalHandler);
 
-    SensorClient client(grpc::CreateChannel("localhost:50051", grpc::InsecureChannelCredentials()));
+    SensorClient client(grpc::CreateChannel(host+":"+port,
+                                            grpc::InsecureChannelCredentials()),
+                        width,
+                        height,
+                        channel);
 
     client.StreamData();
     std::cout << "gRPC client exit\n";
