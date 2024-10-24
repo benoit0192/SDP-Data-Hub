@@ -10,12 +10,17 @@ template class AbstractSensor<cv::Mat>;
 SimulatedRgbCamera::SimulatedRgbCamera(
                     Freq freq,
                     std::string dataPath,
-                    double sampleRate) :
-                        AbstractCameraSensor<cv::Mat>(freq),
-                        imIx(0),
-                        sampleRate(duration_t(sampleRate)),
-                        sampleRateNs(std::chrono::duration_cast<std::chrono::nanoseconds>(this->sampleRate))
+                    double originalSampleRate) :
+     AbstractCameraSensor<cv::Mat>(freq),
+     imIx(0)
 {
+    if (originalSampleRate <= 0.0) {
+        throw std::invalid_argument("Invalid sample rate");
+    }
+
+    this->originalSampleRate   = duration_t(originalSampleRate);
+    this->originalSampleRateNs = std::chrono::duration_cast<std::chrono::nanoseconds>(this->originalSampleRate);
+
     // Check if the directory exists
     if (!fs::exists(dataPath)) {
         throw std::runtime_error("Directory not found: " + dataPath);
@@ -55,7 +60,7 @@ cv::Mat SimulatedRgbCamera::fetchData()
     auto now         = clock::now();
     auto elapsedTime = now - tStart;
 
-    imIx = (elapsedTime / sampleRateNs) % images.size();
+    imIx = (elapsedTime / originalSampleRateNs) % images.size();
     return images[imIx];
 }
 
@@ -106,9 +111,18 @@ void SimulatedRgbCamera::streamForDuration(double duration,
     auto dt_ns_   = std::chrono::duration_cast<std::chrono::nanoseconds>(dt_);
     auto lastTime = tStart_;
     std::string cvWindowName = "Sensor Stream";
+    cv::namedWindow(cvWindowName, cv::WINDOW_NORMAL);
+    cv::resizeWindow(cvWindowName, params.width, params.height);
     while(clock::now() - tStart_ < dt_ns_){
+        auto t0  = clock::now();
         auto buffer = stream();
+        std::chrono::duration<double, std::milli> dt0 = clock::now() - t0;
+        std::cout << "Stream call dt: " << dt0 << '\n';
+
+        /* auto t1  = clock::now(); */
         auto im     = decodeDataFromByte(buffer, params);
+        /* std::chrono::duration<double, std::milli> dt1 = clock::now() - t1; */
+        /* std::cout << "DecodeFromByte call dt: " << dt1 << '\n'; */
 
         auto currentTime = clock::now();
         std::chrono::duration<double, std::milli> deltaTime = currentTime - lastTime;
@@ -117,7 +131,7 @@ void SimulatedRgbCamera::streamForDuration(double duration,
         std::string deltaText = "Delta Time: " +
                                 std::to_string(deltaTime.count()) +
                                 " ms";
-        std::cout << deltaText << '\n';
+        /* std::cout << deltaText << '\n'; */
 
         cv::imshow(cvWindowName, im);
         if (cv::waitKey(1) == 'q') {

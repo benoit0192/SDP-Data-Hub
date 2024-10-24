@@ -12,7 +12,7 @@ struct SensorParams {
 };
 
 template <typename T>
-class AbstractSensor{
+class AbstractSensor {
 public:
     AbstractSensor(Freq freq=Freq::HZ_10);
     virtual                   ~AbstractSensor();
