@@ -5,6 +5,8 @@ RUN apt-get update                  && \
         build-essential                \
         git                            \
         cmake                          \
+        valgrind                       \
+        gdb                            \
         libopencv-dev                  \
         libboost-all-dev               \
         libsystemd-dev              && \
